@@ -1,0 +1,185 @@
+// VerilogA for verilog_a, ver1, veriloga
+
+`include "constants.vams"
+`include "disciplines.vams"
+
+module final(t1,t2);
+inout t1,t2;
+electrical t1,t2,d1;
+
+parameter real A = 1e2 ; // Prexponential Constatnt m*s^{-1}
+parameter real B = 3e-26 ; // m^4/s
+parameter real alpha_pos = 0.28 ; // barrier lowering factor
+parameter real Ea0_pos = 0.99 ; // eV energy barrier at F=0
+parameter real Ea1_pos = 0.65 ; // eV energy barrier at F=0
+parameter real alpha_neg = 1.1 ; // barrier lowering factor
+parameter real Ea0_neg = 0.72*0.9 ; // eV energy barrier at F=0
+parameter real Ea1_neg = 0.8*0.65 ; // eV energy barrier at F=0
+parameter real phi_a = 0.1e-9 ; // m smallest filament size
+parameter real gap_a = 0.2e-9 ; // m smallest filament gap
+
+parameter real rhom0 = 2e-6 ; // Ohm*m CF Resistivity
+parameter real lf = 28e-9 ; // m free electron length
+parameter real p = 0.5 ;
+parameter real rhoox0 = 2e4 ; // Ohm*m oxide resistivity (F=0)
+parameter real gamma = 55e-9 ; // m/V
+
+parameter real kthm = 5e3 ; // W*m^{-1}*K^{-1} CF thermal conductivity
+parameter real kthox = 1 ; // W*m^{-1}*K^{-1} oxide thermal conductivity
+
+parameter real L = 5e-9 ; // m CF Length(tox)
+parameter real tau_rt = 5e-3 ; // s filament retraction time constant
+
+parameter integer cc = 1; //cc = 1 to set current compliance and cc = 0 for no current compliance
+parameter real  ic = 3.5e-6; //Current Compliance
+
+localparam T0 = 300;
+
+
+real phi, phi_m, gap, R, Rstub, RCF, Rgap, Vgap, Vdev, Idev, F, J, T, rate, t_retrac, rhom, rhoox, rhom_stub;
+real rho_eff, kth_eff;
+real gap_last;
+
+real alpha = alpha_pos;
+real Ea0 = Ea0_pos;
+real Ea1 = Ea1_pos;
+
+analog 
+begin
+
+
+	Vdev = V(t1,t2); //Tracking the voltage across the device
+
+	@(initial_step) //Initial Variable Values - Device in HRS
+	begin
+		phi_m = 2e-9; //Phi - Filament diameter 
+		gap = L;
+		gap_last = gap; 
+		T = T0;
+		phi = 0;
+	end
+
+	//Device parameters are different depending on the polarity of the applied voltage
+	if(Vdev < 0) 
+	begin
+		alpha = alpha_neg;
+		Ea0 = Ea0_neg;
+		Ea1 = Ea1_neg;
+	end		
+	else begin
+		alpha = alpha_pos;
+		Ea0 = Ea0_pos;
+		Ea1 = Ea1_pos;
+	end
+
+
+	//Rate of growth/decay of filament diameter
+	rate = (exp(-`P_Q*Ea0/(`P_K*T))*A*exp(`P_Q*alpha*Vgap/(`P_K*T)))-(exp(-`P_Q*Ea1/(`P_K*T))*B/pow(max(phi,phi_a),3));
+
+
+	if(rate < 0 & phi == 0) rate = 0; //Avoiding the value of filament radius going negative
+
+	phi = idt(rate,0);
+
+
+	if (phi<0) begin
+ 	   phi = 0;
+	end
+	
+
+	if (phi >= phi_m) begin
+ 	   phi = phi_m; //Maximum value of filament diameter
+	end
+
+//When the diameter goes below the minimum size (atomic diamater) the gap of filament starts increasing
+
+	@(cross(phi-phi_a,0,1e-9,1e-10)) begin
+		t_retrac = $abstime; //The time at which fiament diamater crosses the minimum value
+	end
+
+
+
+	$bound_step(1e-6); //Maximum time step to avoid misbehavior of the device
+
+	if(phi>phi_a) begin
+		gap = gap_a;
+	end
+	else begin
+		gap = 1e0*pow($abstime-t_retrac,0.5)*1e-9+gap_a; //The gap distance increases exponetially with respect to time
+		if(gap_last > gap) gap = gap_last; 
+	end
+	
+	gap_last = gap;
+
+	if(gap>L) begin
+		gap = L;
+	end
+
+
+	//Electrical modelling of the device
+	rhom = rhom0*(1-p)*lf/((1+p)*phi);
+	rhoox = rhoox0/(1+gamma*F);
+	rhom_stub = rhom0*(1-p)*lf/((1+p)*phi_m);
+	
+	Rgap = rhoox*gap/((`M_PI*pow(phi_m/2,2))-(`M_PI*pow(phi/2,2)));
+	RCF = rhom*gap/(`M_PI*pow(phi/2,2));
+	Rstub = rhom_stub*(L-gap)/(`M_PI*pow(phi_m/2,2));
+	
+	R = Rstub + 1/(1/Rgap+1/RCF);
+	if(phi == 0)
+	begin
+		R = Rstub + Rgap;
+	end
+
+	if(phi == phi_m)
+	begin
+		R = Rstub + RCF;
+	end
+
+	Idev = V(t1,t2)/R;
+
+
+		if(Idev > 3.5e-6 & cc == 1) begin
+			I(t1,t2) <+ ic;
+			Idev = ic;
+		end
+		else if(Idev < -3.5e-6 & cc == 1) begin
+			I(t1,t2) <+ -ic;
+			Idev = ic; 
+		end
+		else
+			I(t1,t2) <+ Idev;
+
+	Vdev = Idev*R;
+	//Vdev = V(t1,t2);
+	
+
+	Vgap = abs(Vdev)/R*1/(1/RCF + 1/Rgap);
+
+	if(phi == 0)
+	begin	
+		Vgap = abs(Vdev)/R*Rgap;
+	end
+
+	if(phi == phi_m)
+	begin
+		Vgap = abs(Vdev)/R*RCF;
+	end
+
+
+	F = Vgap / gap;
+
+	J = (Vdev/R)/pow(phi_m/2,2);
+
+
+	rho_eff = 1/((pow(phi_m,2)-pow(phi,2))/pow(phi_m,2)/rhoox+pow(phi,2)/pow(phi_m,2)/rhom);
+	kth_eff=pow(phi,2)/pow(phi_m,2)*kthm+(1-pow(phi,2)/pow(phi_m,2))*kthox;
+
+	T = T0 + pow(J,2)*rhom_stub*(pow(L,2)-pow(gap,2))/(8*kthm) + pow(J,2)*rho_eff*pow(gap,2)/(8*kth_eff);
+
+
+//phi_last = phi;
+
+end
+
+endmodule
