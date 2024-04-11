@@ -4,7 +4,7 @@
 `include "disciplines.vams"
 
 module final(t1,t2);
-inout t1,t2;
+inout t1,t2; //Top and bottom electrodes
 electrical t1,t2,d1;
 
 parameter real A = 1e2 ; // Prexponential Constatnt m*s^{-1}
@@ -33,7 +33,7 @@ parameter real tau_rt = 5e-3 ; // s filament retraction time constant
 parameter integer cc = 1; //cc = 1 to set current compliance and cc = 0 for no current compliance
 parameter real  ic = 3.5e-6; //Current Compliance
 
-localparam T0 = 300;
+localparam T0 = 300; //Temperature
 
 
 real phi, phi_m, gap, R, Rstub, RCF, Rgap, Vgap, Vdev, Idev, F, J, T, rate, t_retrac, rhom, rhoox, rhom_stub;
@@ -44,6 +44,7 @@ real alpha = alpha_pos;
 real Ea0 = Ea0_pos;
 real Ea1 = Ea1_pos;
 
+// Model start here
 analog 
 begin
 
@@ -53,7 +54,7 @@ begin
 	@(initial_step) //Initial Variable Values - Device in HRS
 	begin
 		phi_m = 2e-9; //Phi - Filament diameter 
-		gap = L;
+		gap = L; //Lenght of device
 		gap_last = gap; 
 		T = T0;
 		phi = 0;
@@ -79,10 +80,10 @@ begin
 
 	if(rate < 0 & phi == 0) rate = 0; //Avoiding the value of filament radius going negative
 
-	phi = idt(rate,0);
+	phi = idt(rate,0); //Integrating rate of growth/decay of filament diameter to get the current diameter
 
 
-	if (phi<0) begin
+	if (phi<0) begin //Avoid diamater to go negative
  	   phi = 0;
 	end
 	
@@ -102,7 +103,7 @@ begin
 	$bound_step(1e-6); //Maximum time step to avoid misbehavior of the device
 
 	if(phi>phi_a) begin
-		gap = gap_a;
+		gap = gap_a; //minimum gap when diameter is greater than atmoic diameter
 	end
 	else begin
 		gap = 1e0*pow($abstime-t_retrac,0.5)*1e-9+gap_a; //The gap distance increases exponetially with respect to time
@@ -112,7 +113,7 @@ begin
 	gap_last = gap;
 
 	if(gap>L) begin
-		gap = L;
+		gap = L; //Gap cannot be greater than the length of device
 	end
 
 
@@ -139,11 +140,12 @@ begin
 	Idev = V(t1,t2)/R;
 
 
-		if(Idev > 3.5e-6 & cc == 1) begin
+		//Current Compliance	
+		if(Idev > ic & cc == 1) begin
 			I(t1,t2) <+ ic;
 			Idev = ic;
 		end
-		else if(Idev < -3.5e-6 & cc == 1) begin
+		else if(Idev < -ic & cc == 1) begin
 			I(t1,t2) <+ -ic;
 			Idev = ic; 
 		end

@@ -8,6 +8,7 @@ function [v,i,x]=vvteam(time,VA,IniState,param,ic)
 %       VA              external voltage applied on the device
 %       IniState        Initial state of the device
 %       param           device parameters
+%                       [kpos apos tau beta] 
 %       ic              [A] compliance current                    
 %                   
 % OUTPUT
@@ -18,10 +19,10 @@ function [v,i,x]=vvteam(time,VA,IniState,param,ic)
 
 
 %Behavioral Model for volatile memristor
-kpos = param(1);
-apos = param(2);
-tau = param(3);
-beta = param(4);
+kpos = param(1); %Filament Growth
+apos = param(2); %Filament Growth
+tau = param(3); %Filament Decay
+beta = param(4); %Filament Decay
 
 D = 1;%Device Length;
 xon = D; %Device is in LRS when state variable = D
