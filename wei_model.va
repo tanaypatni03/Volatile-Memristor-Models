@@ -1,4 +1,4 @@
-// VerilogA for verilog_a, ver1, veriloga
+// VerilogA for Wei's Model
 
 `include "constants.vams"
 `include "disciplines.vams"
