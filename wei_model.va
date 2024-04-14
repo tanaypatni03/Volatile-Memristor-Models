@@ -118,21 +118,21 @@ begin
 
 
 	//Electrical modelling of the device
-	rhom = rhom0*(1-p)*lf/((1+p)*phi);
-	rhoox = rhoox0/(1+gamma*F);
-	rhom_stub = rhom0*(1-p)*lf/((1+p)*phi_m);
+	rhom = rhom0*(1-p)*lf/((1+p)*phi); // Resistivity of conductive filament with diameter less than maximum diameter
+	rhoox = rhoox0/(1+gamma*F); // Resistivity of the non-conductive oxide
+	rhom_stub = rhom0*(1-p)*lf/((1+p)*phi_m); // Resistivity of conductive filament with maximmum diameter
 	
-	Rgap = rhoox*gap/((`M_PI*pow(phi_m/2,2))-(`M_PI*pow(phi/2,2)));
-	RCF = rhom*gap/(`M_PI*pow(phi/2,2));
-	Rstub = rhom_stub*(L-gap)/(`M_PI*pow(phi_m/2,2));
+	Rgap = rhoox*gap/((`M_PI*pow(phi_m/2,2))-(`M_PI*pow(phi/2,2))); //Resistance of oxide gap
+	RCF = rhom*gap/(`M_PI*pow(phi/2,2)); //Resistance of the conductive filament
+	Rstub = rhom_stub*(L-gap)/(`M_PI*pow(phi_m/2,2)); //Resistance of fully formed conductive filament
 	
-	R = Rstub + 1/(1/Rgap+1/RCF);
-	if(phi == 0)
+	R = Rstub + 1/(1/Rgap+1/RCF); // Rgap||RCF in series with Rstub
+	if(phi == 0) // Filament is not formed 
 	begin
 		R = Rstub + Rgap;
 	end
 
-	if(phi == phi_m)
+	if(phi == phi_m) // Complete is filament is formed
 	begin
 		R = Rstub + RCF;
 	end
@@ -152,11 +152,9 @@ begin
 		else
 			I(t1,t2) <+ Idev;
 
-	Vdev = Idev*R;
-	//Vdev = V(t1,t2);
-	
+	Vdev = Idev*R;	
 
-	Vgap = abs(Vdev)/R*1/(1/RCF + 1/Rgap);
+	Vgap = abs(Vdev)/R*1/(1/RCF + 1/Rgap); //Voltage across the filament gap
 
 	if(phi == 0)
 	begin	
@@ -168,14 +166,15 @@ begin
 		Vgap = abs(Vdev)/R*RCF;
 	end
 
+	//Temperature Calculation
 
 	F = Vgap / gap;
 
-	J = (Vdev/R)/pow(phi_m/2,2);
+	J = (Vdev/R)/pow(phi_m/2,2); //Current density
 
 
-	rho_eff = 1/((pow(phi_m,2)-pow(phi,2))/pow(phi_m,2)/rhoox+pow(phi,2)/pow(phi_m,2)/rhom);
-	kth_eff=pow(phi,2)/pow(phi_m,2)*kthm+(1-pow(phi,2)/pow(phi_m,2))*kthox;
+	rho_eff = 1/((pow(phi_m,2)-pow(phi,2))/pow(phi_m,2)/rhoox+pow(phi,2)/pow(phi_m,2)/rhom); //Effective resistivity
+	kth_eff=pow(phi,2)/pow(phi_m,2)*kthm+(1-pow(phi,2)/pow(phi_m,2))*kthox; //Effective thermal conductivity
 
 	T = T0 + pow(J,2)*rhom_stub*(pow(L,2)-pow(gap,2))/(8*kthm) + pow(J,2)*rho_eff*pow(gap,2)/(8*kth_eff);
 
