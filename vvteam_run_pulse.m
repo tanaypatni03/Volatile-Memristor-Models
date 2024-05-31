@@ -22,10 +22,8 @@ va = [v1 v2 v3 v4];
 
 plot(time,va)
 
-param = [15 1.5 15e-3 4];
-
 for j = 10e-2
-    param = [150 0.45 j 8.5];
+    param = [150 0.45 j 8.5 1 1.744 1.5726 30e3 15e11];
     [v,i,x]=vvteam(time,va,0,param,10);
     
     figure(1)
