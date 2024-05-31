@@ -8,7 +8,7 @@ function [v,i,x]=vvteam(time,VA,IniState,param,ic)
 %       VA              external voltage applied on the device
 %       IniState        Initial state of the device
 %       param           device parameters
-%                       [kpos apos tau beta] 
+%                       [kpos apos tau beta D vth vhold Ron Roff]
 %       ic              [A] compliance current                    
 %                   
 % OUTPUT
@@ -23,22 +23,22 @@ kpos = param(1); %Filament Growth
 apos = param(2); %Filament Growth
 tau = param(3); %Filament Decay
 beta = param(4); %Filament Decay
-
-D = 1;%Device Length;
+D = param(5);%Device Length;
 xon = D; %Device is in LRS when state variable = D
 xoff = 0; %Devive is in HRS when state variable = 0
 
-vth = 1.744;
-vhold = 1.5726; %|vhold| < |vth|
+vth = param(6); %Threshold Voltage
+vhold = param(7); %Hold Voltage %|vhold| < |vth|
 
-Ron = 30e3;
-Roff = 15e11;
+Ron = param(8); %Resistance in LRS
+Roff = param(9); %Resistance in HRS
 
 v = VA;
 
 x = zeros(numel(time),1);
 dxdt = zeros(numel(time),1);
 i = zeros(numel(time),1);
+t_retrac = 0;
 
 for j=1:length(time)
     if(j==1)
